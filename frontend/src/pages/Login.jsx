@@ -92,7 +92,6 @@ export default () => {
             <li>• Credential-free Interviewer Login (Email, Name, Phone Number)</li>
             <li>• Capacity constraint-enforced slot booking</li>
             <li>• Custom Online vs Offline slot type allocations</li>
-            <li>• HR Dashboard overlap date warning checks</li>
             <li>• Exportable Excel (.xlsx) and CSV spreadsheets</li>
             <li>• Gmail SMTP automated reminder delivery</li>
           </ul>
