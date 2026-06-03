@@ -57,10 +57,23 @@ module.exports = {
     }
 
     try {
-      let user = await db.get(
-        `SELECT * FROM users WHERE email = ? AND role = 'interviewer'`,
-        [email.toLowerCase().trim()]
-      );
+      let user = null;
+      
+      // Try finding by phone number first if the email is a placeholder
+      if (email.includes('@placeholder.com') && phone_number) {
+        user = await db.get(
+          `SELECT * FROM users WHERE phone_number = ? AND role = 'interviewer'`,
+          [phone_number.trim()]
+        );
+      }
+      
+      // Fallback to finding by email
+      if (!user) {
+        user = await db.get(
+          `SELECT * FROM users WHERE email = ? AND role = 'interviewer'`,
+          [email.toLowerCase().trim()]
+        );
+      }
 
       if (user) {
         // Update details

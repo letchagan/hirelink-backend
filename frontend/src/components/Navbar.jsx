@@ -1,11 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Briefcase, Bell, Menu } from 'lucide-react';
+import { Briefcase, Bell, Menu, Moon, Sun } from 'lucide-react';
 
 export default ({ toggleSidebar }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('hirescheduler_theme');
+    if (savedTheme === 'dark') {
+      setIsDark(true);
+      document.body.classList.add('dark-theme');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDark) {
+      document.body.classList.remove('dark-theme');
+      localStorage.setItem('hirescheduler_theme', 'light');
+      setIsDark(false);
+    } else {
+      document.body.classList.add('dark-theme');
+      localStorage.setItem('hirescheduler_theme', 'dark');
+      setIsDark(true);
+    }
+  };
 
   const getInitials = (name) => {
     if (!name) return 'HS';
@@ -51,6 +72,15 @@ export default ({ toggleSidebar }) => {
       </div>
 
       <div className="nav-actions">
+        <button 
+          onClick={toggleTheme} 
+          className="nav-icon" 
+          style={{ border: 'none', background: 'transparent', display: 'flex', alignItems: 'center' }}
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {isDark ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+
         <div className="nav-icon" title="Notifications">
           <Bell size={20} />
         </div>

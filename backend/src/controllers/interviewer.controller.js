@@ -82,7 +82,7 @@ module.exports = {
 
       // Find availability
       const selections = await db.query(
-        `SELECT campaign_date_id, slot_type, comments FROM availability WHERE user_id = ? AND campaign_id = ?`,
+        `SELECT campaign_date_id, slot_type, comments, created_at FROM availability WHERE user_id = ? AND campaign_id = ? ORDER BY created_at ASC`,
         [user.id, activeCampaignId]
       );
 
@@ -92,7 +92,8 @@ module.exports = {
           dateId: s.campaign_date_id,
           slotType: s.slot_type
         })),
-        comments: selections[0]?.comments || ''
+        comments: selections[0]?.comments || '',
+        submitted_at: selections[0]?.created_at || null
       });
     } catch (error) {
       return responseHandler.error(res, error, 'Failed to load existing selections.');
@@ -122,7 +123,14 @@ module.exports = {
         return responseHandler.badRequest(res, 'Submission blocked. The deadline for this campaign has passed.');
       }
 
-      // Enforce maximum selection limits
+      // Enforce minimum and maximum selection limits
+      const minSlots = campaign.min_selectable_dates || 1;
+      if (selectedSlots.length < minSlots) {
+        return responseHandler.badRequest(
+          res,
+          `Submission blocked. You must select at least ${minSlots} date(s).`
+        );
+      }
       if (selectedSlots.length > campaign.max_selectable_dates) {
         return responseHandler.badRequest(
           res,
@@ -182,25 +190,18 @@ module.exports = {
         }
       }
 
-      // 3.5 Check if already submitted
-      const existingSelections = await db.query(
-        `SELECT id FROM availability WHERE user_id = ? AND campaign_id = ?`,
-        [user.id, campaignId]
-      );
-      if (existingSelections.length > 0) {
-        return responseHandler.badRequest(res, 'Submission locked. You have already submitted your availability for this campaign and it cannot be modified.');
-      }
-
-      // 4. Update Database
+      // 3.5 Remove any previous submission so the new one (with fresh timestamp) replaces it
       await db.run(
         `DELETE FROM availability WHERE user_id = ? AND campaign_id = ?`,
         [user.id, campaignId]
       );
 
+      // 4. Insert new selections with an explicit submitted_at timestamp
+      const submittedAt = new Date().toISOString();
       for (const slot of selectedSlots) {
         await db.run(
-          `INSERT INTO availability (user_id, campaign_id, campaign_date_id, slot_type, comments) VALUES (?, ?, ?, ?, ?)`,
-          [user.id, campaignId, slot.dateId, slot.slotType || 'offline', comments || '']
+          `INSERT INTO availability (user_id, campaign_id, campaign_date_id, slot_type, comments, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+          [user.id, campaignId, slot.dateId, slot.slotType || 'offline', comments || '', submittedAt]
         );
       }
 
@@ -276,68 +277,7 @@ module.exports = {
 
       const mailBody = `Hello ${user.name},\n\nWe have successfully received your interviewer availability for "${campaign.name}".\n\nSelected Slots:\n${selectedDatesText}\n\nAdditional Comments: ${comments || 'None'}\n\nThank you for your response!\n\nBest Regards,\nHR Recruiting Team`;
 
-      const emailUser = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : '';
-      const emailPass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.trim() : '';
-      const mailSender = (process.env.MAIL_SENDER || 'letchagan.a.cse26@psvpec.in').trim();
-
-      let emailSentReal = false;
-
-      if (emailUser && emailPass) {
-        try {
-          const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-              user: emailUser,
-              pass: emailPass
-            }
-          });
-
-          // 1. Send confirmation email to Interviewer
-          const interviewerMailOptions = {
-            from: emailUser,
-            to: user.email.trim(),
-            subject: `Interview Availability Confirmed: ${campaign.name}`,
-            text: mailBody,
-            html: htmlMailBody
-          };
-          await transporter.sendMail(interviewerMailOptions);
-
-          // 2. Send copy of response to HR Admin Letchagan
-          const hrMailOptions = {
-            from: emailUser,
-            to: mailSender,
-            subject: `[HR COPY] Interviewer Availability Submitted: ${user.name}`,
-            text: `Dear Letchagan / HR Team,\n\nAn interviewer has submitted their availability details.\n\nInterviewer Details:\nName: ${user.name}\nEmail: ${user.email}\nPhone: ${user.phone_number}\n\nSelected Availability Slots:\n${selectedDatesText}\n\nAdditional Comments: ${comments || 'None'}\n\nBest Regards,\nHireLink Scheduling System`,
-            html: hrHtmlMailBody
-          };
-          await transporter.sendMail(hrMailOptions);
-
-          emailSentReal = true;
-          console.log(`[SMTP GMAIL] Confirmation emails successfully sent to ${user.email} and HR ${mailSender}`);
-        } catch (mailError) {
-          console.error('Nodemailer failed in submitAvailability:', mailError);
-        }
-      } else {
-        console.log('----------------------------------------------------');
-        console.log('✉️  [SIMULATED MAIL RECEIPT] (Email Env not configured)');
-        console.log(`Interviewer Receipt Sent to: ${user.email}`);
-        console.log(`HR Admin Carbon Copy Sent to: ${mailSender}`);
-        console.log(`Subject: Interview Availability Confirmed: ${campaign.name}`);
-        console.log(`Content:\n${mailBody}`);
-        console.log('----------------------------------------------------');
-      }
-
-      // 5a. Log email to Interviewer
-      await db.run(
-        `INSERT INTO mail_logs (to_email, from_email, subject, body) VALUES (?, ?, ?, ?)`,
-        [user.email, mailSender, `Interview Availability Confirmed: ${campaign.name}`, mailBody + (emailSentReal ? '\n\n[Status: Dispatched via SMTP]' : '\n\n[Status: Simulated (SMTP Credentials Missing)]')]
-      );
-
-      // 5b. Log backup copy email to Admin
-      await db.run(
-        `INSERT INTO mail_logs (to_email, from_email, subject, body) VALUES (?, ?, ?, ?)`,
-        [mailSender, 'letchagan.a.cse26@psvpec.in', `[SYSTEM COPY] Availability Submitted: ${user.name}`, `Interviewer details:\nName: ${user.name}\nEmail: ${user.email}\nPhone: ${user.phone_number}\n\nSubmission details:\n${mailBody}` + (emailSentReal ? '\n\n[Status: Dispatched via SMTP]' : '\n\n[Status: Simulated (SMTP Credentials Missing)]')]
-      );
+      // Mail sending has been disabled.
 
       return responseHandler.success(res, selectedSlots, 'Availability submitted successfully.');
     } catch (error) {

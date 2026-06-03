@@ -21,6 +21,22 @@
   --radius-lg: 24px;
 }
 
+.dark-theme {
+  --primary: #3b82f6;
+  --secondary: #6366f1;
+  --primary-hover: #60a5fa;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --bg: #0f172a;
+  --card-bg: #1e293b;
+  --border: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -643,7 +659,7 @@ tr:hover td {
 
 /* Email preview window */
 .email-preview-container {
-  background-color: #f1f5f9;
+  background-color: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -661,7 +677,7 @@ tr:hover td {
 
 .email-preview-body {
   padding: 24px;
-  background-color: #ffffff;
+  background-color: var(--card-bg);
   min-height: 250px;
   font-size: 0.95rem;
   line-height: 1.6;
@@ -781,5 +797,21 @@ tr:hover td {
     margin-left: 0;
     width: 100%;
     padding: 24px 16px;
+  }
+  
+  /* Make Login Page Responsive */
+  .login-container {
+    flex-direction: column;
+  }
+  .login-left {
+    flex: none;
+    padding: 40px 24px;
+  }
+  .login-tagline {
+    font-size: 2rem;
+  }
+  .login-right {
+    flex: none;
+    padding: 32px 16px;
   }
 }

@@ -11,7 +11,7 @@ export default () => {
   const [endDate, setEndDate] = useState('');
   const [deadline, setDeadline] = useState('');
   const [maxSelectableDates, setMaxSelectableDates] = useState(3);
-  const [location, setLocation] = useState('');
+  const [minSelectableDates, setMinSelectableDates] = useState(1);
   
   // Custom date slots allocation array
   const [dates, setDates] = useState([
@@ -42,11 +42,9 @@ export default () => {
     setDates(updated);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const submitCampaign = async (force = false) => {
     setError('');
     setSuccess('');
-    setOverlapsList([]);
     setLoading(true);
 
     // Basic date validations
@@ -64,23 +62,25 @@ export default () => {
         end_date: endDate,
         deadline,
         max_selectable_dates: parseInt(maxSelectableDates),
-        location,
+        min_selectable_dates: parseInt(minSelectableDates),
+        location: '',
         dates: dates.map(d => ({ 
           date: d.date, 
           max_capacity: parseInt(d.max_capacity),
-          location: d.location || location 
-        }))
+          location: d.location || '' 
+        })),
+        force
       };
 
       const res = await api.post('/api/admin/campaigns', payload);
-      const overlaps = res.data.data.overlaps || [];
-
-      if (overlaps.length > 0) {
-        // Date overlap conflict found
-        setOverlapsList(overlaps);
+      
+      if (res.data.data.needsAcknowledge) {
+        // Date overlap conflict found, creation halted
+        setOverlapsList(res.data.data.overlaps);
         setShowOverlapModal(true);
         setLoading(false);
       } else {
+        setShowOverlapModal(false);
         setSuccess('Hiring Campaign registered successfully! Redirecting...');
         setTimeout(() => {
           navigate('/admin');
@@ -92,12 +92,14 @@ export default () => {
     }
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setOverlapsList([]);
+    submitCampaign(false);
+  };
+
   const handleAcknowledgeAndProceed = () => {
-    setShowOverlapModal(false);
-    setSuccess('Hiring Campaign saved with overlaps acknowledged! Redirecting...');
-    setTimeout(() => {
-      navigate('/admin');
-    }, 1500);
+    submitCampaign(true);
   };
 
   return (
@@ -107,8 +109,8 @@ export default () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
         <CalendarPlus size={32} style={{ color: 'var(--primary)' }} />
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Create Availability Campaign</h2>
-          <p>Configure automated scheduling collections and limits for recruitment operations</p>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Create Recruitment Campaign</h2>
+          <p>Configure automated scheduling, define parameters, and establish capacity limits for recruitment operations.</p>
         </div>
       </div>
 
@@ -120,7 +122,7 @@ export default () => {
           
           {/* Campaign Name */}
           <div className="form-group">
-            <label className="form-label">Campaign Title / Name</label>
+            <label className="form-label">Campaign Title</label>
             <input
               type="text"
               required
@@ -132,31 +134,21 @@ export default () => {
           </div>
 
           <div className="form-row">
-            {/* Campaign Default Location Place */}
-            <div className="form-group">
-              <label className="form-label">Default Interview Location (Place)</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Hyderabad, Pune, Chennai"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="form-input"
-                  style={{ paddingLeft: '44px' }}
-                />
-                <MapPin size={18} style={{ 
-                  position: 'absolute', 
-                  left: '16px', 
-                  top: '15px', 
-                  color: 'var(--text-secondary)' 
-                }} />
-              </div>
-            </div>
-
             {/* Selection Limits */}
-            <div className="form-group">
-              <label className="form-label">Max Date Slots an Interviewer can Select</label>
+            <div className="form-group" style={{ width: '100%' }}>
+              <label className="form-label">Minimum Date Selections</label>
+              <input
+                type="number"
+                required
+                min={1}
+                max={10}
+                value={minSelectableDates}
+                onChange={(e) => setMinSelectableDates(e.target.value)}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group" style={{ width: '100%' }}>
+              <label className="form-label">Maximum Date Selections</label>
               <input
                 type="number"
                 required
@@ -186,6 +178,7 @@ export default () => {
               <input
                 type="date"
                 required
+                min={startDate || undefined}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="form-input"
@@ -199,6 +192,7 @@ export default () => {
             <input
               type="datetime-local"
               required
+              max={startDate ? `${startDate}T00:00` : undefined}
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
               className="form-input"
@@ -254,6 +248,8 @@ export default () => {
                     <input
                       type="date"
                       required
+                      min={startDate || undefined}
+                      max={endDate || undefined}
                       value={d.date}
                       onChange={(e) => handleDateChange(index, 'date', e.target.value)}
                       className="form-input"
@@ -327,7 +323,7 @@ export default () => {
               className="btn btn-primary"
               style={{ border: 'none' }}
             >
-              {loading ? 'Creating...' : 'Register Hiring Campaign'}
+              {loading ? 'Creating...' : 'Create Campaign'}
             </button>
           </div>
 
@@ -353,7 +349,7 @@ export default () => {
           <div className="card" style={{ maxWidth: '500px', width: '100%', border: '1px solid rgb(245 158 11 / 0.3)', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--warning)', marginBottom: '16px' }}>
               <AlertTriangle size={32} />
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Same-Day Campaign Overlap!</h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Campaign Overlap Detected</h3>
             </div>
             
             <p style={{ fontSize: '0.9rem', marginBottom: '16px' }}>

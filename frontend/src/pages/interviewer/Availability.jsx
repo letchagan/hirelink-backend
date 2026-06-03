@@ -9,15 +9,15 @@ export default () => {
   const { user } = useAuth();
 
   const [campaign, setCampaign] = useState(null);
-  
+
   // Multiple Campaigns state
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
-  
+
   // Selected slots: array of { dateId, slotType }
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [comments, setComments] = useState('');
-  
+
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -53,17 +53,36 @@ export default () => {
         // Fetch existing selections for this campaign using user email
         if (user && user.email) {
           try {
-            const selectionsRes = await api.post('/api/interviewer/load-existing', { 
+            const selectionsRes = await api.post('/api/interviewer/load-existing', {
               email: user.email,
-              campaignId: targetCampaignId 
+              campaignId: targetCampaignId
             });
-            const { selections, comments: existingComments } = selectionsRes.data.data;
-            
+            const { selections, comments: existingComments, submitted_at } = selectionsRes.data.data;
+
             if (selections && selections.length > 0) {
               setSelectedSlots(selections);
               setIsLocked(true);
+
+              // Generate receipt for already submitted response
+              const receiptSlots = selections.map(slot => {
+                const dObj = active.dates.find(d => Number(d.id) === Number(slot.dateId));
+                return {
+                  date: dObj ? dObj.date : 'Unknown Date',
+                  location: slot.slotType === 'online' ? 'Online (Virtual)' : (dObj ? (dObj.location || 'HQ Office') : 'HQ Office'),
+                  medium: slot.slotType
+                };
+              });
+              setSubmissionReceipt({
+                interviewerName: user.name,
+                interviewerPhone: user.phone_number || '',
+                campaignName: active.name,
+                slots: receiptSlots,
+                comments: existingComments || '',
+                submittedAt: submitted_at ? new Date(submitted_at).toLocaleString() : 'Not recorded'
+              });
             } else {
               setIsLocked(false);
+              setSubmissionReceipt(null);
             }
             if (existingComments) {
               setComments(existingComments);
@@ -99,7 +118,7 @@ export default () => {
   const handleCardToggle = (id) => {
     setError('');
     setSuccess('');
-    
+
     const existingIndex = selectedSlots.findIndex(s => s.dateId === id);
     const dateObj = campaign.dates.find(d => d.id === id);
 
@@ -137,6 +156,23 @@ export default () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    const minSlots = campaign.min_selectable_dates || 1;
+
+    if (selectedSlots.length === 0) {
+      alert("It is compulsory to fill your availability. Please select at least one date.");
+      setError("It is compulsory to fill your availability. Please select at least one date.");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (selectedSlots.length < minSlots) {
+      alert(`Please choose the minimum data. You must select at least ${minSlots} date(s) before it can be submitted.`);
+      setError(`Please choose the minimum data. You must select at least ${minSlots} date(s) before it can be submitted.`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setSaveLoading(true);
 
     try {
@@ -151,7 +187,7 @@ export default () => {
 
       setSuccess('Your interview availability dates and choices have been saved successfully!');
       setIsLocked(true);
-      
+
       // Refresh campaign stats
       const campaignRes = await api.get(`/api/interviewer/active-campaign?campaignId=${campaign.id}`);
       const refreshedCampaign = campaignRes.data.data;
@@ -168,17 +204,19 @@ export default () => {
       });
       setSubmissionReceipt({
         interviewerName: user.name,
-        interviewerEmail: user.email,
         interviewerPhone: user.phone_number,
         campaignName: campaign.name,
         slots: receiptSlots,
-        comments: comments
+        comments: comments,
+        submittedAt: new Date().toLocaleString()
       });
 
       setSaveLoading(false);
 
-      // Scroll to top to see success alert
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Redirect to interviewer dashboard after brief delay
+      setTimeout(() => {
+        navigate('/interviewer');
+      }, 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit availability selections.');
       setSaveLoading(false);
@@ -208,7 +246,7 @@ export default () => {
 
   return (
     <div className="animate-fade" style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '40px' }}>
-      
+
       {/* Header Info */}
       <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -219,20 +257,11 @@ export default () => {
           </div>
         </div>
 
-        <div style={{ 
-          backgroundColor: 'rgb(37 99 235 / 0.06)', 
-          padding: '8px 16px', 
-          borderRadius: '50px',
-          border: '1px solid rgb(37 99 235 / 0.15)',
-          fontSize: '0.85rem'
-        }}>
-          🏢 Default Place: <strong>{campaign.location || 'HQ Office'}</strong>
-        </div>
       </div>
 
       {/* Dynamic Campaign Selector Bar for Interviewers */}
       {campaigns.length > 0 && (
-        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: '12px', background: '#F8FAFC', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>Select Recruitment Drive Campaign:</span>
           <select
             value={selectedCampaignId || ''}
@@ -254,32 +283,32 @@ export default () => {
 
       {/* Submission Receipt Box Emulator */}
       {submissionReceipt && (
-        <div className="card animate-fade" style={{ 
-          marginBottom: '32px', 
-          border: '1px solid var(--primary)', 
-          background: 'linear-gradient(135deg, #ffffff, #F0F9FF)',
+        <div className="card animate-fade" style={{
+          marginBottom: '32px',
+          border: '1px solid var(--primary)',
+          background: 'var(--bg)',
           padding: '24px'
         }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            borderBottom: '1px solid var(--border)', 
-            paddingBottom: '12px', 
-            marginBottom: '16px' 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            borderBottom: '1px solid var(--border)',
+            paddingBottom: '12px',
+            marginBottom: '16px'
           }}>
-            <Mail size={20} style={{ color: 'var(--primary)' }} />
-            <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700' }}>✉️ Interview Availability Submission E-Mail Receipt</h4>
+            <Check size={20} style={{ color: 'var(--primary)' }} />
+            <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700' }}>📄 Interview Availability Submission Receipt</h4>
           </div>
-          
+
           <p style={{ fontSize: '0.85rem', marginBottom: '16px', color: 'var(--text-secondary)' }}>
-            A copy of this receipt has been dispatched to your email (<strong>{submissionReceipt.interviewerEmail}</strong>) and to the HR Recruiting Team (<strong>kaviyarsusir@hirescheduler.com</strong>).
+            Your availability details have been securely recorded and submitted to the HR Recruiting Team.
           </p>
 
-          <div style={{ 
-            backgroundColor: '#ffffff', 
-            border: '1px solid var(--border)', 
-            borderRadius: '8px', 
+          <div style={{
+            backgroundColor: 'var(--bg)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
             padding: '16px',
             fontSize: '0.85rem',
             display: 'flex',
@@ -287,10 +316,11 @@ export default () => {
             gap: '12px'
           }}>
             <div style={{ color: 'var(--text-secondary)' }}>
-              <strong>Recipient (Interviewer):</strong> {submissionReceipt.interviewerName} ({submissionReceipt.interviewerEmail})<br />
-              <strong>HR Coordinator Contact:</strong> Kaviarasu (kaviyarsusir@hirescheduler.com)
+              <strong>Interviewer:</strong> {submissionReceipt.interviewerName}<br />
+              <strong>HR Coordinator Contact:</strong> Kaviarasu<br />
+              <strong>Timestamp:</strong> {submissionReceipt.submittedAt}
             </div>
-            
+
             <hr style={{ border: 'none', borderTop: '1px dashed var(--border)', margin: '4px 0' }} />
 
             <div>
@@ -301,7 +331,7 @@ export default () => {
               <strong>Declared Available Slots:</strong>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
                 {submissionReceipt.slots.map((s, idx) => (
-                  <div key={idx} style={{ padding: '8px 12px', backgroundColor: '#F8FAFC', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={idx} style={{ padding: '8px 12px', backgroundColor: 'var(--bg)', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: '700' }}>{s.date}</span>
                     <span style={{ fontSize: '0.75rem', fontWeight: '600', padding: '2px 8px', borderRadius: '50px', backgroundColor: s.medium === 'online' ? 'rgb(37 99 235 / 0.08)' : 'rgb(34 197 94 / 0.08)', color: s.medium === 'online' ? 'var(--primary)' : 'var(--success)' }}>
                       📍 {s.location}
@@ -313,7 +343,7 @@ export default () => {
 
             <div>
               <strong>Interviewer Comments:</strong>
-              <div style={{ padding: '8px 12px', backgroundColor: '#F8FAFC', borderRadius: '6px', border: '1px solid var(--border)', fontStyle: submissionReceipt.comments ? 'normal' : 'italic', marginTop: '4px', color: 'var(--text-secondary)' }}>
+              <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg)', borderRadius: '6px', border: '1px solid var(--border)', fontStyle: submissionReceipt.comments ? 'normal' : 'italic', marginTop: '4px', color: 'var(--text-secondary)' }}>
                 {submissionReceipt.comments || 'No comments provided.'}
               </div>
             </div>
@@ -336,13 +366,13 @@ export default () => {
 
       {/* Selector Grid of Cards */}
       <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: 'var(--text-primary)' }}>1. Select Available Dates ({selectedSlots.length} selected)</h3>
-      
+
       <div className="dates-selector-grid" style={{ marginBottom: '32px' }}>
         {campaign.dates.map((d) => {
           const selectedObj = selectedSlots.find(s => s.dateId === d.id);
           const isSelected = !!selectedObj;
           const isFullyBooked = d.remainingSlots === 0;
-          
+
           return (
             <div
               key={d.id}
@@ -361,7 +391,7 @@ export default () => {
                   <span style={{ fontSize: '1.1rem', fontWeight: '700', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>
                     {d.date}
                   </span>
-                  
+
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                     {isFullyBooked ? (
                       <strong style={{ color: 'var(--danger)' }}>Fully Booked</strong>
@@ -371,7 +401,7 @@ export default () => {
                   </span>
 
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <MapPin size={12} style={{ color: 'var(--primary)', flexShrink: 0 }} /> 
+                    <MapPin size={12} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                     <span>Place: <strong>{d.location || 'HQ Office'}</strong></span>
                   </span>
                 </div>
@@ -384,9 +414,9 @@ export default () => {
 
               {/* Slot type radio selections inside card - shown only when card is selected */}
               {isSelected && (
-                <div 
+                <div
                   className="animate-fade"
-                  style={{ 
+                  style={{
                     marginTop: '4px',
                     paddingTop: '12px',
                     borderTop: '1px solid var(--border)',
@@ -398,10 +428,10 @@ export default () => {
                   <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
                     INTERVIEW MEDIUM:
                   </span>
-                  
+
                   <div style={{ display: 'flex', gap: '16px' }}>
-                    <label 
-                      onClick={(e) => e.stopPropagation()} 
+                    <label
+                      onClick={(e) => e.stopPropagation()}
                       style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500' }}
                     >
                       <input
@@ -415,8 +445,8 @@ export default () => {
                       <MapPin size={12} style={{ color: 'var(--text-secondary)' }} /> Offline ({d.location || 'HQ Office'})
                     </label>
 
-                    <label 
-                      onClick={(e) => e.stopPropagation()} 
+                    <label
+                      onClick={(e) => e.stopPropagation()}
                       style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500' }}
                     >
                       <input
@@ -438,12 +468,12 @@ export default () => {
       </div>
 
       {/* Selected Slots Policy Indicator */}
-      <div className="card" style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <div className="card" style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '32px',
-        backgroundColor: '#F8FAFC',
+        backgroundColor: 'var(--bg)',
         border: '1px dashed var(--border)',
         flexWrap: 'wrap',
         gap: '16px',
@@ -452,7 +482,7 @@ export default () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Clock size={18} style={{ color: 'var(--primary)' }} />
           <span style={{ fontSize: '0.9rem' }}>
-            Selected: <strong style={{ color: 'var(--primary)' }}>{selectedSlots.length}</strong> / {campaign.max_selectable_dates} maximum dates
+            Selected: <strong style={{ color: 'var(--primary)' }}>{selectedSlots.length}</strong> (Min: {campaign.min_selectable_dates || 1}, Max: {campaign.max_selectable_dates})
           </span>
         </div>
 
@@ -467,7 +497,7 @@ export default () => {
           <MessageSquare size={18} style={{ color: 'var(--primary)' }} /> 2. Add Comments / Special Instructions
         </h3>
         <textarea
-          placeholder="E.g., I would prefer afternoon slots on the offline days, or any other preferences..."
+          placeholder=""
           value={comments}
           onChange={(e) => setComments(e.target.value)}
           disabled={isFormDisabled}
@@ -487,7 +517,7 @@ export default () => {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
           <button
             onClick={handleSave}
-            disabled={saveLoading || selectedSlots.length === 0}
+            disabled={saveLoading}
             className="btn btn-primary"
             type="button"
             style={{ height: '48px', border: 'none' }}

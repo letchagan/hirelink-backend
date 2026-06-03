@@ -38,8 +38,8 @@ export default () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Mail size={32} style={{ color: 'var(--primary)' }} />
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Simulated Email Logs & Audits</h2>
-            <p>Auditable trail of all triggered notification emails, receipts, and remind requests.</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Communication Audit Logs</h2>
+            <p>Monitor automated reminders and system communication history.</p>
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@ export default () => {
         {/* Table list */}
         <div className="card table-card">
           <div className="table-header-bar">
-            <h3 style={{ fontSize: '1.1rem' }}>Triggered Email List ({filteredLogs.length})</h3>
+            <h3 style={{ fontSize: '1.1rem' }}>Dispatch History ({filteredLogs.length})</h3>
             
             <div style={{ position: 'relative', width: '250px' }}>
               <input
@@ -126,7 +126,7 @@ export default () => {
 
           {selectedLog ? (
             <div className="email-preview-container" style={{ border: '1px solid var(--border)', borderRadius: '8px' }}>
-              <div className="email-preview-header" style={{ backgroundColor: '#F8FAFC', padding: '16px', fontSize: '0.8rem', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div className="email-preview-header" style={{ backgroundColor: 'var(--bg)', padding: '16px', fontSize: '0.8rem', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div><strong>From:</strong> {selectedLog.from_email}</div>
                 <div><strong>To:</strong> {selectedLog.to_email}</div>
                 <div><strong>Subject:</strong> <span style={{ color: 'var(--primary)', fontWeight: '600' }}>{selectedLog.subject}</span></div>

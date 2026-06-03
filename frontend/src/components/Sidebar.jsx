@@ -10,7 +10,6 @@ import {
   Sparkles, 
   ShieldAlert, 
   BarChart4, 
-  Mail, 
   LogOut,
   Calendar,
   Clock
@@ -31,7 +30,6 @@ export default ({ collapsed, isMobileOpen }) => {
     { to: '/admin/monitor-responses', label: 'Monitor Responses', icon: <Eye size={18} /> },
     { to: '/admin/reports', label: 'Reports', icon: <FileSpreadsheet size={18} /> },
     { to: '/admin/ai-schedule', label: 'AI Scheduling', icon: <Sparkles size={18} /> },
-    { to: '/admin/mail-logs', label: 'Email Audit Logs', icon: <Mail size={18} /> },
   ];
 
   const interviewerLinks = [

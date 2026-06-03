@@ -82,6 +82,7 @@ async function connectAndBootstrap() {
       end_date DATE NOT NULL,
       deadline DATETIME NOT NULL,
       max_selectable_dates INT DEFAULT 3,
+      min_selectable_dates INT DEFAULT 1,
       location VARCHAR(250) NULL,
       status VARCHAR(20) DEFAULT 'active'
     )`);
@@ -127,6 +128,11 @@ async function connectAndBootstrap() {
     )`);
     
     console.log('SQLite tables initialized successfully.');
+    try {
+      await run(`ALTER TABLE campaigns ADD COLUMN min_selectable_dates INT DEFAULT 1`);
+    } catch (e) {
+      // Column likely already exists
+    }
   } else {
     console.log('Connecting to MySQL database...');
     mysqlPool = mysql.createPool({
@@ -158,6 +164,7 @@ async function connectAndBootstrap() {
       end_date DATE NOT NULL,
       deadline DATETIME NOT NULL,
       max_selectable_dates INT DEFAULT 3,
+      min_selectable_dates INT DEFAULT 1,
       location VARCHAR(250) NULL,
       status VARCHAR(20) DEFAULT 'active',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -204,6 +211,11 @@ async function connectAndBootstrap() {
     )`);
 
     console.log('MySQL database connected and tables initialized.');
+    try {
+      await run(`ALTER TABLE campaigns ADD COLUMN min_selectable_dates INT DEFAULT 1`);
+    } catch (e) {
+      // Column likely already exists
+    }
   }
 
   // Insert default administrator and default interviewers for easy testing if users table is empty
@@ -233,14 +245,14 @@ async function connectAndBootstrap() {
     console.log('Default users successfully seeded.');
   }
 
-  // Always ensure Letchagan HR admin exists
-  const existingKavi = await get(`SELECT * FROM users WHERE email = ?`, ['letchagan.a.cse26@psvpec.in']);
+  // Always ensure Admin Kaviarasu exists
+  const existingKavi = await get(`SELECT * FROM users WHERE email = ?`, ['kaviyarsu@hirescheduler.com']);
   if (!existingKavi) {
     await run(
       `INSERT INTO users (email, name, password, role) VALUES (?, ?, ?, ?)`,
-      ['letchagan.a.cse26@psvpec.in', 'Letchagan', 'Kavi1234#', 'admin']
+      ['kaviyarsu@hirescheduler.com', 'Kaviarasu', 'Kavi1234#', 'admin']
     );
-    console.log('Dummy HR Admin Letchagan seeded.');
+    console.log('Admin Kaviarasu seeded.');
   }
 }
 

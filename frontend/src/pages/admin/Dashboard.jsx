@@ -50,6 +50,7 @@ export default () => {
   const [editName, setEditName] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editMaxSelectable, setEditMaxSelectable] = useState(3);
+  const [editMinSelectable, setEditMinSelectable] = useState(1);
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
   const [editDeadline, setEditDeadline] = useState('');
@@ -113,6 +114,23 @@ export default () => {
     fetchDashboardData();
   }, []);
 
+  const handleDeleteCampaign = async () => {
+    if (!stats.campaignId) return;
+    if (!window.confirm("Are you sure you want to permanently delete this campaign and all its data?")) {
+      return;
+    }
+    
+    setError('');
+    setSuccess('');
+    try {
+      await api.delete(`/api/admin/campaigns/${stats.campaignId}`);
+      setSuccess('Campaign deleted successfully.');
+      fetchDashboardData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete campaign.');
+    }
+  };
+
   const handleToggleStatus = async () => {
     if (!stats.campaignId) return;
     setError('');
@@ -138,6 +156,7 @@ export default () => {
       setEditName(campaign.name);
       setEditLocation(campaign.location || '');
       setEditMaxSelectable(campaign.max_selectable_dates);
+      setEditMinSelectable(campaign.min_selectable_dates || 1);
       setEditStartDate(campaign.start_date);
       setEditEndDate(campaign.end_date);
       
@@ -190,6 +209,7 @@ export default () => {
         end_date: editEndDate,
         deadline: editDeadline,
         max_selectable_dates: parseInt(editMaxSelectable),
+        min_selectable_dates: parseInt(editMinSelectable),
         location: editLocation,
         dates: editDates.map(d => ({ 
           date: d.date, 
@@ -236,10 +256,10 @@ export default () => {
       {/* Welcome Card Section */}
       <div className="welcome-card">
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Welcome Back, HR Admin</h1>
+          <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Welcome Back, Administrator</h1>
           <p style={{ marginTop: '4px' }}>
             Current Campaign: <strong style={{ color: 'var(--primary)' }}>{stats.campaignName}</strong>. 
-            Manage collection drives, configure locations, and control availability forms.
+            Manage recruitment campaigns, configure locations, and oversee availability forms.
           </p>
         </div>
         <div style={{
@@ -259,9 +279,9 @@ export default () => {
 
       {/* Dynamic Campaign Selector Bar */}
       {campaigns.length > 0 && (
-        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: '#F8FAFC', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>Select Active Recruitment Campaign:</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>Select Active Campaign:</span>
             <select
               value={selectedCampaignId || ''}
               onChange={(e) => handleCampaignChange(e.target.value)}
@@ -276,7 +296,7 @@ export default () => {
             </select>
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-            Total Drives Configured: <strong>{campaigns.length} campaigns</strong>
+            Total Active Campaigns: <strong>{campaigns.length} campaigns</strong>
           </p>
         </div>
       )}
@@ -286,7 +306,7 @@ export default () => {
 
       {/* Campaign Control Widget Card */}
       {stats.campaignId && (
-        <div className="card" style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px', padding: '20px 24px', background: 'linear-gradient(135deg, #ffffff, #F8FAFC)', borderLeft: `4px solid ${stats.campaignStatus === 'active' ? 'var(--primary)' : 'var(--text-secondary)'}` }}>
+        <div className="card" style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px', padding: '20px 24px', background: 'var(--bg)', borderLeft: `4px solid ${stats.campaignStatus === 'active' ? 'var(--primary)' : 'var(--text-secondary)'}` }}>
           
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
             <CalendarRange size={24} style={{ color: 'var(--primary)' }} />
@@ -328,6 +348,15 @@ export default () => {
                 </>
               )}
             </button>
+
+            <button
+              onClick={handleDeleteCampaign}
+              className="btn btn-secondary btn-danger btn-sm"
+              style={{ height: '38px', fontSize: '0.8rem', backgroundColor: '#FEE2E2', color: 'var(--danger)', border: 'none' }}
+              title="Delete Campaign"
+            >
+              <Trash2 size={14} /> Delete
+            </button>
           </div>
         </div>
       )}
@@ -345,7 +374,7 @@ export default () => {
             <span className="stat-title">Total Interviewers</span>
             <span className="stat-value">{stats.totalInterviewers}</span>
             <span className="stat-trend up">
-              Active Pool
+              Active Roster
             </span>
           </div>
           <div className="stat-icon-container" style={{ backgroundColor: '#EFF6FF', color: 'var(--primary)' }}>
@@ -359,7 +388,7 @@ export default () => {
             <span className="stat-title">Responses Received</span>
             <span className="stat-value">{stats.totalResponses}</span>
             <span className="stat-trend up" style={{ color: 'var(--success)' }}>
-              Declared Availability
+              Availability Registered
             </span>
           </div>
           <div className="stat-icon-container" style={{ backgroundColor: '#ECFDF5', color: 'var(--success)' }}>
@@ -373,7 +402,7 @@ export default () => {
             <span className="stat-title">Pending Responses</span>
             <span className="stat-value">{stats.pendingResponses}</span>
             <span className="stat-trend down" style={{ color: 'var(--warning)' }}>
-              Awaiting Action
+              Action Required
             </span>
           </div>
           <div className="stat-icon-container" style={{ backgroundColor: '#FFFBEB', color: 'var(--warning)' }}>
@@ -387,7 +416,7 @@ export default () => {
             <span className="stat-title">Response Rate</span>
             <span className="stat-value">{stats.responsePercentage}%</span>
             <span className="stat-trend up" style={{ color: stats.responsePercentage >= 70 ? 'var(--success)' : 'var(--danger)' }}>
-              {stats.responsePercentage >= 70 ? 'Target met' : 'Needs attention'}
+              {stats.responsePercentage >= 70 ? 'Target Achieved' : 'Action Required'}
             </span>
           </div>
           <div className="stat-icon-container" style={{ backgroundColor: '#EEF2F6', color: 'var(--secondary)' }}>
@@ -403,7 +432,7 @@ export default () => {
         {/* Response Overview Ring Chart Emulator */}
         <div className="card chart-container">
           <div className="chart-header">
-            <h3>Response Overview Participation</h3>
+            <h3>Overall Response Participation</h3>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Status Metrics</span>
           </div>
 
@@ -422,7 +451,7 @@ export default () => {
                 width: '110px',
                 height: '110px',
                 borderRadius: '50%',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'var(--card-bg)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -456,7 +485,7 @@ export default () => {
         {/* Date Capacity Selection Distribution Bar Chart */}
         <div className="card chart-container">
           <div className="chart-header">
-            <h3>Date Capacity Selection Distributions</h3>
+            <h3>Capacity Allocation Distribution</h3>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Max capacity vs actual</span>
           </div>
 
@@ -543,6 +572,17 @@ export default () => {
                     required
                     value={editLocation}
                     onChange={(e) => setEditLocation(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Min Date Selections</label>
+                  <input
+                    type="number"
+                    required
+                    value={editMinSelectable}
+                    onChange={(e) => setEditMinSelectable(e.target.value)}
                     className="form-input"
                   />
                 </div>
@@ -704,7 +744,7 @@ export default () => {
           <div className="card" style={{ maxWidth: '500px', width: '100%', border: '1px solid rgb(245 158 11 / 0.3)', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--warning)', marginBottom: '16px' }}>
               <AlertTriangle size={32} />
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Same-Day Campaign Overlap!</h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Campaign Overlap Detected</h3>
             </div>
             
             <p style={{ fontSize: '0.9rem', marginBottom: '16px' }}>

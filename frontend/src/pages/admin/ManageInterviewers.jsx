@@ -77,7 +77,6 @@ export default () => {
 
     try {
       const payload = { 
-        email, 
         name, 
         phone_number: phone,
         campaignId: selectedCampaignId
@@ -132,8 +131,8 @@ export default () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Users size={32} style={{ color: 'var(--primary)' }} />
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Manage Interviewer Pool</h2>
-            <p>Maintain the directory of qualified interviewers assigned to your campaigns</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Interviewer Roster Management</h2>
+            <p>Maintain and organize the directory of qualified personnel assigned to active recruitment campaigns.</p>
           </div>
         </div>
 
@@ -142,7 +141,7 @@ export default () => {
           className="btn btn-primary"
           style={{ border: 'none' }}
         >
-          <Plus size={18} /> Register Interviewer
+          <Plus size={18} /> Add Interviewer
         </button>
       </div>
 
@@ -151,9 +150,9 @@ export default () => {
 
       {/* Dynamic Campaign Selector Bar */}
       {campaigns.length > 0 && (
-        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: '#F8FAFC', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>View Interviewers for Campaign:</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>Filter Roster by Campaign:</span>
             <select
               value={selectedCampaignId}
               onChange={(e) => handleCampaignChange(e.target.value)}
@@ -199,21 +198,24 @@ export default () => {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Email Address</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. john@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="form-input"
-                    style={{ paddingLeft: '40px' }}
-                  />
-                  <Mail size={16} style={{ position: 'absolute', left: '14px', top: '16px', color: 'var(--text-secondary)' }} />
-                </div>
-              </div>
+                {/* Email field removed per request */}
+                {false && (
+                  <div className="form-group">
+                    <label className="form-label">Email Address</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="email"
+                        required
+                        placeholder="e.g. john@gmail.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="form-input"
+                        style={{ paddingLeft: '40px' }}
+                      />
+                      <Mail size={16} style={{ position: 'absolute', left: '14px', top: '16px', color: 'var(--text-secondary)' }} />
+                    </div>
+                  </div>
+                )}
 
               <div className="form-group">
                 <label className="form-label">Phone Number</label>
@@ -257,12 +259,12 @@ export default () => {
       {/* Search Bar & Table Layout */}
       <div className="card table-card">
         <div className="table-header-bar">
-          <h3 style={{ fontSize: '1.1rem' }}>Interviewer Database Directory</h3>
+          <h3 style={{ fontSize: '1.1rem' }}>Interviewer Directory</h3>
           <div className="table-actions">
             <div style={{ position: 'relative', width: '260px' }}>
               <input
                 type="text"
-                placeholder="Search name, email, phone..."
+                placeholder="Search by name, email, or phone number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="form-input"
@@ -283,7 +285,6 @@ export default () => {
               <thead>
                 <tr>
                   <th>Full Name</th>
-                  <th>Email Address</th>
                   <th>Phone Number</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -293,7 +294,6 @@ export default () => {
                   filtered.map((intv) => (
                     <tr key={intv.id}>
                       <td style={{ fontWeight: '600' }}>{intv.name}</td>
-                      <td>{intv.email}</td>
                       <td>{intv.phone_number || '-'}</td>
                       <td style={{ textAlign: 'right' }}>
                         <button

@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Briefcase, Mail, Shield, User, HelpCircle, CheckCircle2, Phone } from 'lucide-react';
+import { Briefcase, Mail, Shield, User, HelpCircle, CheckCircle2, Phone, Eye, EyeOff } from 'lucide-react';
 
 export default () => {
   const { user, adminLogin, interviewerLogin } = useAuth();
   const navigate = useNavigate();
 
   const [role, setRole] = useState('interviewer'); // 'admin', 'interviewer'
-  
+
   // Interviewer fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
 
   // Admin fields
-  const [adminEmail, setAdminEmail] = useState('kaviyarsusir@hirescheduler.com');
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  
+  const [showPassword, setShowPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -47,12 +48,15 @@ export default () => {
           navigate('/admin', { replace: true });
         }, 1000);
       } else {
-        if (!name || !email || !phone) {
-          setError('All details are required to submit availability.');
+        if (!name || !phone) {
+          setError('Name and phone number are required.');
           setLoading(false);
           return;
         }
-        await interviewerLogin(name, email, phone);
+        
+        // Use a placeholder email since the field is hidden
+        const submitEmail = email || `${phone}@placeholder.com`;
+        await interviewerLogin(name, submitEmail, phone);
         setSuccessMsg('Profile authenticated. Loading availability form...');
         setTimeout(() => {
           navigate('/interviewer/availability', { replace: true });
@@ -108,12 +112,12 @@ export default () => {
           </div>
 
           {/* Role selector tab */}
-          <div style={{ 
-            display: 'flex', 
-            backgroundColor: 'var(--bg)', 
-            padding: '4px', 
-            borderRadius: 'var(--radius-sm)', 
-            marginBottom: '24px' 
+          <div style={{
+            display: 'flex',
+            backgroundColor: 'var(--bg)',
+            padding: '4px',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '24px'
           }}>
             <button
               onClick={() => { setRole('interviewer'); setError(''); }}
@@ -124,8 +128,8 @@ export default () => {
                 borderRadius: '6px',
                 height: '40px',
                 border: 'none',
-                backgroundColor: role === 'interviewer' ? '#ffffff' : 'transparent',
-                color: role === 'interviewer' ? 'var(--primary)' : 'var(--text-secondary)',
+                backgroundColor: role === 'interviewer' ? 'var(--primary)' : 'transparent',
+                color: role === 'interviewer' ? '#ffffff' : 'var(--text-secondary)',
                 boxShadow: role === 'interviewer' ? 'var(--shadow)' : 'none',
                 fontWeight: '600'
               }}
@@ -141,8 +145,8 @@ export default () => {
                 borderRadius: '6px',
                 height: '40px',
                 border: 'none',
-                backgroundColor: role === 'admin' ? '#ffffff' : 'transparent',
-                color: role === 'admin' ? 'var(--primary)' : 'var(--text-secondary)',
+                backgroundColor: role === 'admin' ? 'var(--primary)' : 'transparent',
+                color: role === 'admin' ? '#ffffff' : 'var(--text-secondary)',
                 boxShadow: role === 'admin' ? 'var(--shadow)' : 'none',
                 fontWeight: '600'
               }}
@@ -155,7 +159,7 @@ export default () => {
           {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
+
             {role === 'interviewer' ? (
               <>
                 {/* Interviewer Form Fields */}
@@ -171,35 +175,38 @@ export default () => {
                       className="form-input"
                       style={{ paddingLeft: '44px' }}
                     />
-                    <User size={18} style={{ 
-                      position: 'absolute', 
-                      left: '16px', 
-                      top: '15px', 
-                      color: 'var(--text-secondary)' 
+                    <User size={18} style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '15px',
+                      color: 'var(--text-secondary)'
                     }} />
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Email Address</label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. john@gmail.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="form-input"
-                      style={{ paddingLeft: '44px' }}
-                    />
-                    <Mail size={18} style={{ 
-                      position: 'absolute', 
-                      left: '16px', 
-                      top: '15px', 
-                      color: 'var(--text-secondary)' 
-                    }} />
+                {/* Hiding Email Address form as requested (for future use) */}
+                {false && (
+                  <div className="form-group">
+                    <label className="form-label">Email Address</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="email"
+                        required
+                        placeholder="e.g. john@gmail.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="form-input"
+                        style={{ paddingLeft: '44px' }}
+                      />
+                      <Mail size={18} style={{
+                        position: 'absolute',
+                        left: '16px',
+                        top: '15px',
+                        color: 'var(--text-secondary)'
+                      }} />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label">Phone Number</label>
@@ -213,11 +220,11 @@ export default () => {
                       className="form-input"
                       style={{ paddingLeft: '44px' }}
                     />
-                    <Phone size={18} style={{ 
-                      position: 'absolute', 
-                      left: '16px', 
-                      top: '15px', 
-                      color: 'var(--text-secondary)' 
+                    <Phone size={18} style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '15px',
+                      color: 'var(--text-secondary)'
                     }} />
                   </div>
                 </div>
@@ -237,11 +244,11 @@ export default () => {
                       className="form-input"
                       style={{ paddingLeft: '44px' }}
                     />
-                    <Mail size={18} style={{ 
-                      position: 'absolute', 
-                      left: '16px', 
-                      top: '15px', 
-                      color: 'var(--text-secondary)' 
+                    <Mail size={18} style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '15px',
+                      color: 'var(--text-secondary)'
                     }} />
                   </div>
                 </div>
@@ -250,27 +257,46 @@ export default () => {
                   <label className="form-label">Password</label>
                   <div style={{ position: 'relative' }}>
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       required
                       placeholder="Password"
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
                       className="form-input"
-                      style={{ paddingLeft: '44px' }}
+                      style={{ paddingLeft: '44px', paddingRight: '44px' }}
                     />
-                    <Shield size={18} style={{ 
-                      position: 'absolute', 
-                      left: '16px', 
-                      top: '15px', 
-                      color: 'var(--text-secondary)' 
+                    <Shield size={18} style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '15px',
+                      color: 'var(--text-secondary)'
                     }} />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '12px',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                 </div>
               </>
             )}
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="btn btn-primary"
               style={{ width: '100%', border: 'none' }}
@@ -279,23 +305,7 @@ export default () => {
             </button>
           </form>
 
-          {/* Quick reference guide info card */}
-          <div style={{ 
-            marginTop: '24px', 
-            padding: '16px', 
-            backgroundColor: '#EFF6FF', 
-            borderRadius: 'var(--radius-sm)', 
-            border: '1px dashed #BFDBFE',
-            display: 'flex',
-            gap: '10px'
-          }}>
-            <HelpCircle size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-            <div style={{ fontSize: '0.75rem', color: '#1E3A8A' }}>
-              <strong>Quick Start Credentials:</strong><br />
-              • HR Admin (Kaviarasu): <code>kaviyarsusir@hirescheduler.com</code><br />
-              • Interviewer: Enter any Name, Email & Phone to access the slots form directly. Previous preferences auto-load if you re-enter the same email!
-            </div>
-          </div>
+
 
         </div>
       </div>

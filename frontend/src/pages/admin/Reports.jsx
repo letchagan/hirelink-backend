@@ -108,8 +108,8 @@ export default () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <FileSpreadsheet size={32} style={{ color: 'var(--primary)' }} />
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Hiring Availability Reports</h2>
-            <p>Active Drive: <strong style={{ color: 'var(--primary)' }}>{campaign.name}</strong></p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Analytics & Reports</h2>
+            <p>Active Campaign: <strong style={{ color: 'var(--primary)' }}>{campaign.name}</strong></p>
           </div>
         </div>
 
@@ -120,7 +120,7 @@ export default () => {
 
       {/* Dynamic Campaign Selector Bar for Reports */}
       {campaigns.length > 0 && (
-        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: '#F8FAFC', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>Select Campaign Report:</span>
             <select
@@ -208,35 +208,34 @@ export default () => {
         {activeTab === 'availability' ? (
           <div>
             <div className="table-header-bar">
-              <h3>Interviewer Availability Allocation Sheets</h3>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Full consolidated roster</span>
+              <h3>Interviewer Allocation Matrix</h3>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Comprehensive overview of interviewer selections</span>
             </div>
             
             <div className="table-wrapper">
               <table>
                 <thead>
-                  <tr>
-                    <th>Interviewer Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Total Slots</th>
-                    <th>Slot 1</th>
-                    <th>Slot 1 Location</th>
-                    <th>Slot 2</th>
-                    <th>Slot 2 Location</th>
-                    <th>Slot 3</th>
-                    <th>Slot 3 Location</th>
-                    <th>Comments</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {availabilityReport.length > 0 ? (
-                    availabilityReport.map((row, idx) => (
-                      <tr key={idx}>
-                        <td style={{ fontWeight: '600' }}>{row.name}</td>
-                        <td style={{ fontSize: '0.85rem' }}>{row.email}</td>
-                        <td style={{ fontSize: '0.85rem' }}>{row.phone_number}</td>
-                        <td style={{ fontWeight: '700', color: 'var(--primary)', textAlign: 'center' }}>
+                    <tr>
+                      <th>Interviewer Name</th>
+                      <th>Phone</th>
+                      <th>Total Slots</th>
+                      <th>Slot 1</th>
+                      <th>Slot 1 Location</th>
+                      <th>Slot 2</th>
+                      <th>Slot 2 Location</th>
+                      <th>Slot 3</th>
+                      <th>Slot 3 Location</th>
+                      <th>Comments</th>
+                      <th>Submitted At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {availabilityReport.length > 0 ? (
+                      availabilityReport.map((row, idx) => (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: '600' }}>{row.name}</td>
+                          <td style={{ fontSize: '0.85rem' }}>{row.phone_number}</td>
+                          <td style={{ fontWeight: '700', color: 'var(--primary)', textAlign: 'center' }}>
                           <span style={{ backgroundColor: 'rgb(37 99 235 / 0.1)', padding: '4px 10px', borderRadius: '50px' }}>{row.total_slots}</span>
                         </td>
                         
@@ -276,6 +275,9 @@ export default () => {
                         <td style={{ fontSize: '0.8rem', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.comments}>
                           {row.comments ? row.comments : <span style={{ color: 'var(--text-secondary)' }}>No comments</span>}
                         </td>
+                        <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                          {row.submitted_at && row.submitted_at !== '-' ? new Date(row.submitted_at).toLocaleString() : '-'}
+                        </td>
                       </tr>
                     ))
                   ) : (
@@ -292,7 +294,7 @@ export default () => {
         ) : (
           <div>
             <div className="table-header-bar">
-              <h3>Interview Date Summary Slots</h3>
+              <h3>Daily Interview Capacity</h3>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Daily participant totals</span>
             </div>
             

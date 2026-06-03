@@ -36,7 +36,7 @@ export default () => {
         </div>
       </div>
 
-      <div className="card" style={{ padding: '32px', textAlign: 'center', backgroundColor: '#F8FAFC', border: '1px solid var(--border)', marginBottom: '32px' }}>
+      <div className="card" style={{ padding: '32px', textAlign: 'center', backgroundColor: 'var(--bg)', border: '1px solid var(--border)', marginBottom: '32px' }}>
         <Calendar size={48} style={{ color: 'var(--primary)', margin: '0 auto 16px' }} />
         <h3 style={{ fontSize: '1.25rem', marginBottom: '8px' }}>Interview Availability Drives</h3>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', maxWidth: '500px', margin: '0 auto 24px' }}>

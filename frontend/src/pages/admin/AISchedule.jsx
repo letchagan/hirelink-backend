@@ -1,18 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { Sparkles, Calendar, Award, CheckCircle2, ChevronRight, User } from 'lucide-react';
 
 export default () => {
+  const [searchParams] = useSearchParams();
+  const urlCampaignId = searchParams.get('campaign');
+
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState(urlCampaignId || '');
+
   const [scheduleData, setScheduleData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      try {
+        const res = await api.get('/api/admin/campaigns');
+        const list = res.data.data || [];
+        setCampaigns(list);
+        if (!selectedCampaignId && list.length > 0) {
+          setSelectedCampaignId(list[0].id.toString());
+        }
+      } catch (err) {
+        console.error('Failed to load campaigns for AI scheduler');
+      }
+    };
+    fetchCampaigns();
+  }, []);
+
   const handleGenerate = async () => {
+    if (!selectedCampaignId) {
+      setError('Please select a campaign first.');
+      return;
+    }
     try {
       setLoading(true);
       setError('');
       
-      const res = await api.get('/api/ai/schedule');
+      const res = await api.get(`/api/ai/schedule?campaignId=${selectedCampaignId}`);
       setScheduleData(res.data.data);
       
       setLoading(false);
@@ -29,10 +56,34 @@ export default () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
         <Sparkles size={32} style={{ color: 'var(--primary)' }} />
         <div>
-          <h2>AI Scheduling Coordinator</h2>
-          <p>Generate optimized Balanced Workload interview allocation plans instantly using constraint programming</p>
+          <h2>AI Scheduling Engine</h2>
+          <p>Automatically generate optimized, workload-balanced interview schedules using advanced constraint programming.</p>
         </div>
       </div>
+
+      {/* Dynamic Campaign Selector Bar */}
+      {campaigns.length > 0 && (
+        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>Select Campaign to Optimize:</span>
+            <select
+              value={selectedCampaignId}
+              onChange={(e) => {
+                setSelectedCampaignId(e.target.value);
+                setScheduleData(null); // clear data when switching
+              }}
+              className="form-input"
+              style={{ width: '280px', height: '40px', fontSize: '0.85rem', padding: '0 12px', marginBottom: 0 }}
+            >
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.status === 'closed' ? '(Closed)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {error && <div className="alert alert-danger">{error}</div>}
 
@@ -58,7 +109,7 @@ export default () => {
         <div className="card" style={{ textAlign: 'center', padding: '64px' }}>
           <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
           <h3>AI Engine is Processing...</h3>
-          <p style={{ marginTop: '4px' }}>Balancing workloads, distributing allocations, and satisfying capacities.</p>
+          <p style={{ marginTop: '4px' }}>Analyzing constraints, balancing workloads, and generating optimal allocations.</p>
         </div>
       )}
 

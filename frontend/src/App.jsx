@@ -19,7 +19,6 @@ import ManageInterviewers from './pages/admin/ManageInterviewers';
 import MonitorResponses from './pages/admin/MonitorResponses';
 import Reports from './pages/admin/Reports';
 import AISchedule from './pages/admin/AISchedule';
-import MailLogs from './pages/admin/MailLogs';
 
 // Interviewer Pages
 import Home from './pages/interviewer/Home';
@@ -49,7 +48,6 @@ export default () => {
             <Route path="monitor-responses" element={<MonitorResponses />} />
             <Route path="reports" element={<Reports />} />
             <Route path="ai-schedule" element={<AISchedule />} />
-            <Route path="mail-logs" element={<MailLogs />} />
           </Route>
 
           {/* Secure Interviewer Portal Routes */}

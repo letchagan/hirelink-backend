@@ -9,7 +9,7 @@ async function compileAvailabilityReport(campaignId) {
 
   // ONLY select interviewers who actually submitted availability for THIS campaign
   const interviewers = await db.query(
-    `SELECT DISTINCT u.id, u.name, u.email, u.phone_number FROM users u
+    `SELECT DISTINCT u.id, u.name, u.phone_number FROM users u
      JOIN availability a ON u.id = a.user_id
      WHERE u.role = 'interviewer' AND a.campaign_id = ?
      ORDER BY u.name ASC`,
@@ -17,7 +17,7 @@ async function compileAvailabilityReport(campaignId) {
   );
 
   const selections = await db.query(
-    `SELECT a.user_id, cd.date, a.slot_type, cd.location, a.comments FROM availability a 
+    `SELECT a.user_id, cd.date, a.slot_type, cd.location, a.comments, a.created_at FROM availability a 
      JOIN campaign_dates cd ON a.campaign_date_id = cd.id 
      WHERE a.campaign_id = ? ORDER BY cd.date ASC`,
     [campaignId]
@@ -46,7 +46,6 @@ async function compileAvailabilityReport(campaignId) {
 
     return {
       name: u.name,
-      email: u.email,
       phone_number: u.phone_number || '-',
       total_slots: userSel.length,
       slot1: slot1 ? slot1.date : '-',
@@ -55,7 +54,8 @@ async function compileAvailabilityReport(campaignId) {
       slot2_location: formatLoc(slot2),
       slot3: slot3 ? slot3.date : '-',
       slot3_location: formatLoc(slot3),
-      comments: (slot1?.comments || slot2?.comments || slot3?.comments || '')
+      comments: (slot1?.comments || slot2?.comments || slot3?.comments || ''),
+      submitted_at: slot1 ? slot1.created_at : '-'
     };
   });
 }
@@ -63,12 +63,12 @@ async function compileAvailabilityReport(campaignId) {
 // Helper to compile date summary report in a dialect-agnostic way
 async function compileSummaryReport(campaignId) {
   const dates = await db.query(
-    `SELECT id, date FROM campaign_dates WHERE campaign_id = ? ORDER BY date ASC`,
+    `SELECT id, date, location FROM campaign_dates WHERE campaign_id = ? ORDER BY date ASC`,
     [campaignId]
   );
 
   const selections = await db.query(
-    `SELECT a.campaign_date_id, u.name FROM availability a 
+    `SELECT a.campaign_date_id, u.name, a.slot_type FROM availability a 
      JOIN users u ON a.user_id = u.id 
      WHERE a.campaign_id = ?`,
     [campaignId]
@@ -79,13 +79,15 @@ async function compileSummaryReport(campaignId) {
     if (!selectionsMap[sel.campaign_date_id]) {
       selectionsMap[sel.campaign_date_id] = [];
     }
-    selectionsMap[sel.campaign_date_id].push(sel.name);
+    const locText = sel.slot_type === 'online' ? 'Online' : 'Offline';
+    selectionsMap[sel.campaign_date_id].push(`${sel.name} (${locText})`);
   });
 
   return dates.map(d => {
     const list = selectionsMap[d.id] || [];
     return {
       date: d.date,
+      location: d.location || 'N/A',
       count: list.length,
       interviewers: list.join(', ') || 'No selections'
     };
@@ -159,22 +161,21 @@ module.exports = {
         filename = 'Interviewer_Availability_Report';
         headers = [
           'Interviewer Name', 
-          'email', 
-          'phone number', 
+          'Phone Number', 
           'Total Selected',
-          'slot 1', 
-          'slot 1 location', 
+          'Slot 1', 
+          'Slot 1 Location', 
           'Slot 2', 
-          'slot 2 location', 
+          'Slot 2 Location', 
           'Slot 3', 
-          'slot 3 location',
-          'Comments'
+          'Slot 3 Location',
+          'Comments',
+          'Submitted At'
         ];
 
         const reportData = await compileAvailabilityReport(activeCampaignId);
         rows = reportData.map(r => [
           r.name,
-          r.email,
           r.phone_number,
           r.total_slots,
           r.slot1,
@@ -183,16 +184,19 @@ module.exports = {
           r.slot2_location,
           r.slot3,
           r.slot3_location,
-          r.comments
+          r.comments,
+          r.submitted_at && r.submitted_at !== '-' ? new Date(r.submitted_at).toLocaleString() : '-'
         ]);
       } else if (reportType === 'summary') {
         filename = 'Date_Summary_Report';
-        headers = ['Date', 'Available Interviewers'];
+        headers = ['Date', 'Configured Location', 'Available Count', 'Interviewers (Selection)'];
 
         const reportData = await compileSummaryReport(activeCampaignId);
         rows = reportData.map(r => [
           r.date,
-          r.count // Show the count in the cell (or r.count + ' (' + r.interviewers + ')')
+          r.location,
+          r.count,
+          r.interviewers
         ]);
       } else {
         return responseHandler.badRequest(res, 'Invalid report type requested.');

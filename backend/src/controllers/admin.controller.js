@@ -26,10 +26,15 @@ module.exports = {
 
   // Create new interviewer profile
   async createInterviewer(req, res) {
-    const { email, name, phone_number, campaignId } = req.body;
+    let { email, name, phone_number, campaignId } = req.body;
 
-    if (!email || !name || !phone_number) {
-      return responseHandler.badRequest(res, 'Email, name, and phone number are required.');
+    if (!name || !phone_number) {
+      return responseHandler.badRequest(res, 'Name and phone number are required.');
+    }
+    
+    // Inject placeholder email if not provided
+    if (!email) {
+      email = `${phone_number.trim()}@placeholder.com`;
     }
 
     try {
@@ -98,7 +103,7 @@ module.exports = {
 
   // Create a hiring availability campaign with overlap checks
   async createCampaign(req, res) {
-    const { name, start_date, end_date, deadline, max_selectable_dates, location, dates } = req.body;
+    const { name, start_date, end_date, deadline, max_selectable_dates, min_selectable_dates, location, dates, force } = req.body;
 
     if (!name || !start_date || !end_date || !deadline || !dates || !dates.length) {
       return responseHandler.badRequest(res, 'Missing required campaign details or date allocations.');
@@ -119,10 +124,20 @@ module.exports = {
         }
       }
 
+      if (overlaps.length > 0 && !force) {
+        // Return overlaps without creating the campaign
+        return responseHandler.success(
+          res,
+          { overlaps, needsAcknowledge: true },
+          'Overlaps detected. Acknowledgement required.',
+          200
+        );
+      }
+
       // Insert campaign
       const campaignResult = await db.run(
-        `INSERT INTO campaigns (name, start_date, end_date, deadline, max_selectable_dates, location, status) VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-        [name, start_date, end_date, deadline, max_selectable_dates || 3, location || '']
+        `INSERT INTO campaigns (name, start_date, end_date, deadline, max_selectable_dates, min_selectable_dates, location, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+        [name, start_date, end_date, deadline, max_selectable_dates || 3, min_selectable_dates || 1, location || '']
       );
 
       const campaignId = campaignResult.insertId;
@@ -149,7 +164,7 @@ module.exports = {
   // Update campaign details
   async updateCampaign(req, res) {
     const { id } = req.params;
-    const { name, start_date, end_date, deadline, max_selectable_dates, location, dates } = req.body;
+    const { name, start_date, end_date, deadline, max_selectable_dates, min_selectable_dates, location, dates } = req.body;
 
     if (!name || !start_date || !end_date || !deadline || !dates || !dates.length) {
       return responseHandler.badRequest(res, 'Missing required campaign details or date allocations.');
@@ -177,8 +192,8 @@ module.exports = {
 
       // Update campaign core fields
       await db.run(
-        `UPDATE campaigns SET name = ?, start_date = ?, end_date = ?, deadline = ?, max_selectable_dates = ?, location = ? WHERE id = ?`,
-        [name, start_date, end_date, deadline, max_selectable_dates || 3, location || '', id]
+        `UPDATE campaigns SET name = ?, start_date = ?, end_date = ?, deadline = ?, max_selectable_dates = ?, min_selectable_dates = ?, location = ? WHERE id = ?`,
+        [name, start_date, end_date, deadline, max_selectable_dates || 3, min_selectable_dates || 1, location || '', id]
       );
 
       // Fetch existing campaign dates

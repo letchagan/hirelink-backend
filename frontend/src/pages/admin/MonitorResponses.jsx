@@ -1,40 +1,53 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { Eye, Mail, CheckCircle, AlertCircle, Search, RefreshCw, Phone, User, MessageSquare, Monitor, MapPin } from 'lucide-react';
 
 export default () => {
+  const [searchParams] = useSearchParams();
+  const urlCampaignId = searchParams.get('campaign');
+
   const [campaign, setCampaign] = useState(null);
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState(urlCampaignId || '');
+  
   const [statuses, setStatuses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'responded', 'pending'
   
   const [loading, setLoading] = useState(true);
-  const [actionLoadingId, setActionLoadingId] = useState(null); // id of interviewer being emailed
+  const [actionLoadingId, setActionLoadingId] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   // Selected interviewer for detail drawer
   const [selectedInterviewer, setSelectedInterviewer] = useState(null);
 
-  const fetchCampaignAndStatuses = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
       setError('');
       
-      // Fetch latest campaign
       const campaignRes = await api.get('/api/admin/campaigns');
-      const latest = campaignRes.data.data[0];
+      const campaignsList = campaignRes.data.data || [];
+      setCampaigns(campaignsList);
       
-      if (!latest) {
-        setLoading(false);
-        return;
+      let targetId = selectedCampaignId;
+      if (!targetId || targetId === 'all') {
+        if (campaignsList.length > 0) {
+          targetId = campaignsList[0].id.toString();
+          setSelectedCampaignId(targetId);
+        }
       }
-      
-      setCampaign(latest);
 
-      // Fetch availability list to compare responded status
-      const reportRes = await api.get(`/api/reports/availability?campaignId=${latest.id}`);
-      setStatuses(reportRes.data.data);
+      if (targetId) {
+        const targetCamp = campaignsList.find(c => c.id.toString() === targetId) || campaignsList[0];
+        setCampaign(targetCamp);
+        
+        // Fetch availability list for selected campaign
+        const reportRes = await api.get(`/api/reports/availability?campaignId=${targetCamp.id}`);
+        setStatuses(reportRes.data.data);
+      }
       
       setLoading(false);
     } catch (err) {
@@ -43,8 +56,25 @@ export default () => {
     }
   };
 
+  const handleCampaignChange = async (cid) => {
+    setSelectedCampaignId(cid);
+    setSelectedInterviewer(null);
+    try {
+      setLoading(true);
+      const targetCamp = campaigns.find(c => c.id.toString() === cid.toString());
+      setCampaign(targetCamp);
+
+      const reportRes = await api.get(`/api/reports/availability?campaignId=${cid}`);
+      setStatuses(reportRes.data.data);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to load statuses for selected campaign.');
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchCampaignAndStatuses();
+    fetchInitialData();
   }, []);
 
   const handleSendAiEmail = async (row) => {
@@ -80,7 +110,12 @@ export default () => {
 
   const handleViewDetails = async (row) => {
     try {
-      const res = await api.post('/api/interviewer/load-existing', { email: row.email });
+      // Use phone-based lookup: pass the placeholder email derived from phone
+      const lookupEmail = `${row.phone_number}@placeholder.com`;
+      const res = await api.post('/api/interviewer/load-existing', { 
+        email: lookupEmail,
+        campaignId: campaign.id 
+      });
       const details = res.data.data;
       
       // Map slots to show dates
@@ -98,9 +133,9 @@ export default () => {
 
       setSelectedInterviewer({
         name: details.user.name,
-        email: details.user.email,
         phone: details.user.phone_number,
         comments: details.comments,
+        submittedAt: details.submitted_at ? new Date(details.submitted_at).toLocaleString() : null,
         selections: fullSlots
       });
     } catch (e) {
@@ -114,8 +149,7 @@ export default () => {
     
     const matchesSearch = (
       row.name.toLowerCase().includes(term) ||
-      row.email.toLowerCase().includes(term) ||
-      row.phone_number.toLowerCase().includes(term)
+      (row.phone_number && row.phone_number.toLowerCase().includes(term))
     );
 
     if (!matchesSearch) return false;
@@ -158,18 +192,39 @@ export default () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Eye size={32} style={{ color: 'var(--primary)' }} />
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Monitor Interviewer Responses</h2>
-            <p>Active Drive: <strong style={{ color: 'var(--primary)' }}>{campaign.name}</strong></p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Submission Monitoring</h2>
+            <p>Active Campaign: <strong style={{ color: 'var(--primary)' }}>{campaign.name}</strong></p>
           </div>
         </div>
 
-        <button onClick={fetchCampaignAndStatuses} className="btn btn-secondary" style={{ height: '40px' }}>
-          <RefreshCw size={16} /> Refresh board
+        <button onClick={() => handleCampaignChange(selectedCampaignId)} className="btn btn-secondary" style={{ height: '40px' }}>
+          <RefreshCw size={16} /> Refresh Dashboard
         </button>
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
       {success && <div className="alert alert-success" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={20} /> {success}</div>}
+
+      {/* Dynamic Campaign Selector Bar */}
+      {campaigns.length > 0 && (
+        <div className="card" style={{ marginBottom: '24px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>Filter Submissions by Campaign:</span>
+            <select
+              value={selectedCampaignId}
+              onChange={(e) => handleCampaignChange(e.target.value)}
+              className="form-input"
+              style={{ width: '280px', height: '40px', fontSize: '0.85rem', padding: '0 12px', marginBottom: 0 }}
+            >
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.status === 'closed' ? '(Closed)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '32px' }}>
@@ -178,15 +233,15 @@ export default () => {
           <h3 style={{ fontSize: '1.4rem', marginTop: '2px' }}>{total} registered</h3>
         </div>
         <div className="card" style={{ padding: '16px 20px' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>Responded Count</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>Submissions Received</span>
           <h3 style={{ fontSize: '1.4rem', marginTop: '2px', color: 'var(--success)' }}>{responded} completed</h3>
         </div>
         <div className="card" style={{ padding: '16px 20px' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--warning)' }}>Pending Submissions</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--warning)' }}>Awaiting Action</span>
           <h3 style={{ fontSize: '1.4rem', marginTop: '2px', color: 'var(--warning)' }}>{pending} outstanding</h3>
         </div>
         <div className="card" style={{ padding: '16px 20px' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>Participation Rate</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>Response Rate</span>
           <h3 style={{ fontSize: '1.4rem', marginTop: '2px', color: 'var(--primary)' }}>{rate}%</h3>
         </div>
       </div>
@@ -196,7 +251,7 @@ export default () => {
         {/* Main List Table */}
         <div className="card table-card">
           <div className="table-header-bar" style={{ gap: '16px' }}>
-            <h3 style={{ fontSize: '1.1rem' }}>Interviewer Response Board</h3>
+            <h3 style={{ fontSize: '1.1rem' }}>Interviewer Submissions Dashboard</h3>
             
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {/* Status Filter Tab */}
@@ -215,7 +270,7 @@ export default () => {
               <div style={{ position: 'relative', width: '220px' }}>
                 <input
                   type="text"
-                  placeholder="Search name, email, phone..."
+                  placeholder="Search by name, email, or phone number..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="form-input"
@@ -231,8 +286,7 @@ export default () => {
               <thead>
                 <tr>
                   <th>Interviewer Details</th>
-                  <th>email</th>
-                  <th>phone number</th>
+                  <th>Phone Number</th>
                   <th>Status</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -244,13 +298,12 @@ export default () => {
                     const isRowActionLoading = actionLoadingId === row.email;
                     
                     return (
-                      <tr key={row.email}>
+                      <tr key={row.phone_number}>
                         <td style={{ fontWeight: '600' }}>
                           <span style={{ cursor: hasSubmitted ? 'pointer' : 'default', color: hasSubmitted ? 'var(--primary)' : 'inherit' }} onClick={() => hasSubmitted && handleViewDetails(row)}>
                             {row.name}
                           </span>
                         </td>
-                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{row.email}</td>
                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{row.phone_number}</td>
                         <td>
                           <span className={`badge ${hasSubmitted ? 'badge-low' : 'badge-medium'}`} style={{ fontSize: '0.65rem' }}>
@@ -279,7 +332,7 @@ export default () => {
                                 border: 'none'
                               }}
                             >
-                              <Mail size={12} /> {isRowActionLoading ? 'Sending...' : 'Send AI Email'}
+                              <Mail size={12} /> {isRowActionLoading ? 'Sending...' : 'Send AI Reminder Email'}
                             </button>
                           )}
                         </td>
@@ -288,7 +341,7 @@ export default () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                       No interviewers found matching criteria.
                     </td>
                   </tr>
@@ -303,7 +356,7 @@ export default () => {
           <div className="card animate-fade" style={{ position: 'sticky', top: '90px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '20px' }}>
               <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <User size={18} style={{ color: 'var(--primary)' }} /> Interviewer Selections
+                <User size={18} style={{ color: 'var(--primary)' }} /> Interviewer Details
               </h3>
               <button 
                 onClick={() => setSelectedInterviewer(null)}
@@ -320,15 +373,17 @@ export default () => {
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Interviewer Information</span>
                 <h4 style={{ fontSize: '1.2rem', marginTop: '2px' }}>{selectedInterviewer.name}</h4>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-                  <span>📧 Email: <strong>{selectedInterviewer.email}</strong></span>
                   <span>📞 Phone: <strong>{selectedInterviewer.phone}</strong></span>
+                  {selectedInterviewer.submittedAt && (
+                    <span>🕐 Submitted: <strong>{selectedInterviewer.submittedAt}</strong></span>
+                  )}
                 </p>
               </div>
 
               <hr style={{ border: 'none', borderTop: '1px solid var(--border)' }} />
 
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Declared Available Dates</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Selected Dates</span>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {selectedInterviewer.selections.map((sel, idx) => (
@@ -350,7 +405,7 @@ export default () => {
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
                   <MessageSquare size={12} style={{ marginRight: '4px' }} /> Interviewer Comments
                 </span>
-                <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', border: '1px solid var(--border)', minHeight: '60px', fontStyle: selectedInterviewer.comments ? 'normal' : 'italic' }}>
+                <div style={{ padding: '12px', backgroundColor: 'var(--bg)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', border: '1px solid var(--border)', minHeight: '60px', fontStyle: selectedInterviewer.comments ? 'normal' : 'italic' }}>
                   {selectedInterviewer.comments || 'No comments declared by interviewer.'}
                 </div>
               </div>
