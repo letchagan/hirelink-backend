@@ -6,14 +6,13 @@ module.exports = {
   async getInterviewers(req, res) {
     const { campaignId } = req.query;
     try {
-      let query = `SELECT id, email, name, phone_number FROM users WHERE role = 'interviewer'`;
+      let query = `SELECT id, name, phone_number FROM users WHERE role = 'interviewer'`;
       let params = [];
 
       if (campaignId && campaignId !== 'all') {
-        query = `SELECT u.id, u.email, u.name, u.phone_number FROM users u
+        query = `SELECT u.id, u.name, u.phone_number FROM users u
                  JOIN campaign_interviewers ci ON u.id = ci.user_id
                  WHERE u.role = 'interviewer' AND ci.campaign_id = ?`;
-        params.push(campaignId);
       }
       query += ` ORDER BY id DESC`;
 
